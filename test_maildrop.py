@@ -1,11 +1,11 @@
-from .maildrop import MailDropReader
-from django.test import TestCase
-from django.core import mail
-from django.conf import settings
-from django.utils.html import strip_tags
+from maildrop import MailDropReader
+import smtplib
+from email.message import EmailMessage
+from dotenv import load_dotenv
+import re, os, random, string
 
 # change to true to trace all requests to maildrop.cc
-TRACE_REQUESTS=True
+TRACE_REQUESTS=False
 if TRACE_REQUESTS:
 	import http.client as http_client
 	import logging
@@ -16,91 +16,133 @@ if TRACE_REQUESTS:
 	requests_log.setLevel(logging.DEBUG)
 	requests_log.propagate = True
 
+load_dotenv()
 
-maildrop_inbox = 'test-maildrop'
-message_test_body = """
+def generate_random_string(length):
+    return ''.join(random.choice(string.digits) for _ in range(length))
+
+def do(func, *args):
+	if not callable(func):
+		raise ValueError(f"{func.name} is not callable")
+	print(f">>> running test {func.__name__} with args: {args}")
+	res = func(*args) if len(args) > 0 else func()
+	print(f"<<< end test {func.__name__} with result: {res}")
+
+def strip_tags(raw_html):
+  cleanr = re.compile('<.*?>')
+  cleantext = re.sub(cleanr, '', raw_html)
+  return cleantext
+
+maildrop_inbox = os.environ['MAILDROP_INBOX']
+message_test_body = f"""
 <html>
 	<header>
 		<style>
-			body { color: red;}
+			body {{ color: red;}}
 		</style>
 	</header>
 	<body>
-		<p>This is the test mail body</p>
+		<h1>Test maildropy on inbox {maildrop_inbox}</h1>
+		<p>This is the test mail body #{generate_random_string(8)}</p>
 	</body>
 </html>
 """
+txt_message_test_body = strip_tags(message_test_body)
 
-class MailDropTests(TestCase):
+def send_test_mail(subject='test maildrop'):
+	msg = EmailMessage()
+	msg.set_content(txt_message_test_body)
+	msg['Subject'] = subject
+	msg['From'] = os.environ['FROM_ADDRESS']
+	msg['To'] = f'{maildrop_inbox}@maildrop.cc'
+	msg.add_alternative(message_test_body, subtype='html')
+	if os.environ['SMTP_SSL_MODE'] == 'SSL':
+		s = smtplib.SMTP_SSL(os.environ['SMTP_HOST'], os.environ['SMTP_PORT'])
+	else: 
+		s = smtplib.SMTP(os.environ['SMTP_HOST'], os.environ['SMTP_PORT'])
+	if os.environ['SMTP_SSL_MODE'] == 'STARTLS':
+		s.starttls()
+	s.login(os.environ['SMTP_USERNAME'], os.environ['SMTP_PASSWORD'])
+	s.send_message(msg)
+	s.quit()
 
-	def setUp(self):
-		self.maildrop = MailDropReader(maildrop_inbox)
+reader = MailDropReader(maildrop_inbox)
 
-	def test_ping(self):
-		ping_str = "test python maildrop"
-		res = self.maildrop.ping(ping_str)
-		self.assertEqual(res, f'pong {ping_str}')
-		# print(res)
+def test_ping():
+	ping_str = "test python maildrop"
+	res = reader.ping(ping_str)
+	assert res == f'pong {ping_str}', f'unexpected pong: {res}'
+	return res
 
-	def send_test_mail(self, subject='test maildrop'):
-		self.assertIsNotNone(settings.EMAIL_HOST_USER)
-		mail.send_mail(f'{subject}', strip_tags(message_test_body), settings.DEFAULT_FROM_EMAIL,
-			recipient_list=[maildrop_inbox], html_message=message_test_body, fail_silently=False)
-		self.assertEqual(len(mail.outbox), 1)
-		self.assertEqual(mail.outbox[0].subject, subject)
+def test_inbox(nbmsgs):
+	msgs = reader.inbox()
+	assert len(msgs) == nbmsgs, f'unexpected number of messages: {len(msgs)}'
+	msg = msgs[0]
+	assert msg.mailfrom == os.environ['FROM_ADDRESS'], f'unexpected sender: {msg.mailfrom}'
+	return len(msgs)
 
-	def test_inbox(self):
-		self.send_test_mail('testing inbox')
-		msgs = self.maildrop.inbox()
-		self.assertEqual(len(msgs), 1)
-		msg = msgs[0]
-		# print("headerfrom=", msg.headerfrom)
-		self.assertEqual(msg.mailfrom, settings.DEFAULT_FROM_EMAIL)
+# DOES NOT WORK CURRENTLY
+# def test_filtered_inbox():
+# 	subject = 'testing delete'
+# 	send_test_mail(subject)
+# 	msgs = reader.inbox({'subject': subject})
+# 	assert len(msgs) == 1
+# 	msg = msgs[0]
+# 	assert msg.subject == subject
 
-	# def test_filtered_inbox(self):
-	# 	subject = 'testing delete'
-	# 	self.send_test_mail(subject)
-	# 	msgs = self.maildrop.inbox({'subject': subject})
-	# 	self.assertCountEqual(msgs, 1)
-	# 	msg = msgs[0]
-	# 	self.assertEqual(msg.subject, subject)
+def test_status():
+	status = reader.status()
+	assert status == 'operational', "maildrop status not operational"
+	return status
 
-	def test_status(self):
-		self.assertEqual(self.maildrop.status(), 'operational')
+def test_statistics():
+	blocked, saved = reader.statistics()
+	assert blocked >= 1, f'unexpected stat: blocked = {blocked}'
+	assert saved >= 1, f'unexpected stat: saved = {saved}'
+	return (blocked, saved)
 
-	def test_statistics(self):
-		blocked, saved = self.maildrop.statistics()
-		self.assertGreater(blocked, 1)
-		self.assertGreater(saved, 1)
+def test_alias():
+	alias = reader.altinbox()
+	assert alias is not None, "alias not given by maildrop"
+	return alias
 
-	def test_alias(self):
-		alias = self.maildrop.altinbox()
-		print('alias=', alias)
-		self.assertIsNotNone(alias)
+def test_message(subject):
+	msgs = reader.inbox()
+	msg_found = 0
+	for m in msgs:
+		msg = reader.message(m.id)
+		assert msg is not None, "null msg"
+		assert msg.mailfrom == os.environ['FROM_ADDRESS'], f"msg not sent by right sender: {msg.mailfrom}"
+		assert msg.html == message_test_body, f"unexpected msg content: {msg.html}"
+		if msg.subject == subject:
+			msg_found += 1
+			content = msg.html
 
-	def test_message(self):
-		subject = 'test read message'
-		self.send_test_mail(subject)
-		msgs = self.maildrop.inbox()
+	assert msg_found == 1, f"subject '{subject} not found in messages or found several times: {msg_found}"
+	assert content is not None, f"content of message with subject:{subject} not found"
+	return content
 
-		for m in msgs:
-			msg = self.maildrop.message(m.id)
-			self.assertIsNotNone(msg)
-			self.assertEqual(msg.mailfrom, settings.DEFAULT_FROM_EMAIL)
-		
-		self.assertIn(subject, [msg.subject for msg in msgs])
+def test_delete_message():
+	msgs = reader.inbox()
+	nmsgs = len(msgs)
+	msg = msgs[0]
+	id = msg.id
+	reader.delete(id)
+	msgs = reader.inbox()
+	assert len(msgs) == nmsgs - 1, f"messages number should have decreased of one"
+	assert id not in [msg.id for msg in msgs], f"message id {id} still in msgs list after deletion"
+	return "deleted"
 
-	def test_delete_message(self):
-		msgs = self.maildrop.inbox()
-		nmsgs = len(msgs)
-		if nmsgs == 0:
-			self.send_test_mail('testing inbox')
-			msgs = self.maildrop.inbox()
-			nmsgs = len(msgs)
-		self.assertGreater(nmsgs, 0)
-		msg = msgs[0]
-		self.maildrop.delete(msg.id)
-		msgs = self.maildrop.inbox()
-		self.assertEqual(len(msgs), nmsgs - 1)
+do(test_status)
+do(test_statistics)
+do(test_ping)
+do(test_alias)
 
-		
+nbmsgs = 3
+for _ in range(nbmsgs):
+	subject = f'testing message #{generate_random_string(8)}'
+	do(send_test_mail, subject)
+
+do(test_inbox, nbmsgs)
+do(test_message, subject)
+do(test_delete_message)

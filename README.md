@@ -7,7 +7,9 @@ You create a new reader with `MailDropReader(<your maildrop.cc inbox name>)
 The methods are:
 * __status()__: provides the current maildrop.cc status. Returns 'operational' or an error string from the server
 * __ping(string)__: pings the maildrop.cc server with the given string. Returns 'pong <string>'
-* __inbox()__: returns all messages of your inbox (currently returns ALL messages, the filters aren't working). Returns a list of messages with only basic fields filled.
+* __inbox()__: returns all messages of your inbox 
+  Returns a list of messages with only basic fields filled.
+  __(currently returns ALL messages, the filters aren't working)__. 
 * __message(message_id)__: returns a full message including its body, its sender IP, ...
 * __delete__(message_id)__: deletes a message by its id. Returns True if ok
 * __statistics()__: returns maildrop.cc statistics. Returns a tuple (blocked, saved)
@@ -25,3 +27,7 @@ for msg in msgs:
   print(f"content: {message.html}, ip={message.ip}, headerfrom={message.headerfrom}"
 ```
  
+## Testing
+To test the module, clone the repo, then copy `.env.example` in `.env` and provide the email sending settings.
+These settings are used to send emails to maildrop.cc 
+Then run `python test_maildrop.py`
