@@ -26,8 +26,20 @@ for msg in msgs:
   message = reader.message(msg.id)
   print(f"content: {message.html}, ip={message.ip}, headerfrom={message.headerfrom}"
 ```
- 
-## Testing
-To test the module, clone the repo, then copy `.env.example` in `.env` and provide the email sending settings.
-These settings are used to send emails to maildrop.cc 
-Then run `python test_maildrop.py`
+
+# Install
+`pip install maildropy`
+
+## Testing the package in dev mode
+To test the module: (it is recommanded to use pipenv or conda to create a virtual environment)
+```shell
+git clone https://github.com/leolivier/maildropy.git
+cd maildropy
+pip install -r requirements.txt
+pip install pytest
+pip install -e .  # to be able to test in dev mode
+cp tests/.env.example tests/.env 
+nano tests/.env # put your own setup in .env
+pytest test/
+```
+The settings in tests/.env are used to send emails to maildrop.cc 

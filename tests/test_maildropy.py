@@ -1,4 +1,5 @@
-from maildrop import MailDropReader
+
+from maildropy import MailDropReader
 import smtplib
 from email.message import EmailMessage
 from dotenv import load_dotenv
