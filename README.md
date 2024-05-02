@@ -42,4 +42,4 @@ cp tests/.env.example tests/.env
 nano tests/.env # put your own setup in .env
 pytest test/
 ```
-The settings in tests/.env are used to send emails to maildrop.cc 
+The settings in tests/.env are used to send emails to maildrop.cc.It has only been tested with a gmail account and application password
