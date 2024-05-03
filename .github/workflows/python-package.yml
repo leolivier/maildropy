@@ -42,12 +42,12 @@ jobs:
       uses: SpicyPizza/create-envfile@v2.0
       with:
         envkey_FROM_ADDRESS: ${{ secrets.FROM_ADDRESS }}
-        envkey_SMTP_HOST: ${{ secrets.SMTP_HOST }}
-        envkey_SMTP_PORT: ${{ secrets.SMTP_PORT }}
+        envkey_SMTP_HOST: ${{ vars.SMTP_HOST }}
+        envkey_SMTP_PORT: ${{ vars.SMTP_PORT }}
         envkey_SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
         envkey_SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
         envkey_MAILDROP_INBOX: "test-maildropy"
-        envkey_SMTP_SSL_MODE: "STARTLS"
+        envkey_SMTP_SSL_MODE: "SSL"
         directory: tests
         file_name: .env
         fail_on_empty: false
