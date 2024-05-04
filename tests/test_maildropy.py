@@ -107,8 +107,7 @@ def send_mails(params, getenv, maildrop_reader):
 
 	sent_mails = []
 	for _ in range(params.nb_msgs_to_test_with):
-		send_test_mail(params, getenv)
-		send_mails.append(send_test_mail(params, getenv))
+		sent_mails.append(send_test_mail(params, getenv))
 		time.sleep(1)  # rate limiting?
 
 		time_to_wait = params.receive_timeout
@@ -147,7 +146,7 @@ class TestMaildropy:
 		assert msg.mailfrom == getenv['FROM_ADDRESS'], f'unexpected sender: {msg.mailfrom}'
 
 	# DOES NOT WORK CURRENTLY
-	# def test_filtered_inbox(self, maildrop_reader):
+	# def test_filtered_inbox(self, maildrop_reader, send_mails):
 	# 	msgs = maildrop_reader.inbox({'subject': self.subjects[0]})
 	# 	assert len(msgs) == 1
 	# 	msg = msgs[0]
@@ -168,14 +167,15 @@ class TestMaildropy:
 		assert alias is not None, "alias not given by maildrop"
 
 
-	def test_read_messages(self, maildrop_reader, params, getenv):
+	def test_read_messages(self, maildrop_reader, params, getenv, send_mails):
+		sent_mails = send_mails
 		msgs = maildrop_reader.inbox()
 		for m in msgs:
 			msg = maildrop_reader.message(m.id)
 			assert msg is not None, "null msg"
 			assert msg.mailfrom == getenv['FROM_ADDRESS'], f"msg not sent by right sender: {msg.mailfrom}"
-			assert msg.subject in params.subjects, f"unexpected msg subject: {msg.subject}"
-			assert compress(msg.html) in params.bodies, f"unexpected msg content: ***{msg.html}***"
+			assert msg.subject in sent_mails.subjects, f"unexpected msg subject: {msg.subject}"
+			assert compress(msg.html) in sent_mails.bodies, f"unexpected msg content: ***{msg.html}***"
 
 	def test_delete_messages(self, maildrop_reader, params):
 		msgs = maildrop_reader.inbox()
