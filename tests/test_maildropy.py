@@ -56,7 +56,7 @@ def getenv():
 	return os.environ
 
 @pytest.fixture(scope="class")
-def inbox():
+def inbox(getenv):
 	rand_id = ''.join(random.choice(string.printable) for _ in range(8))
 	inbox_prefix = getenv['MAILDROP_INBOX']
 	return f'{inbox_prefix}-{rand_id}'
