@@ -46,7 +46,7 @@ jobs:
         envkey_SMTP_PORT: ${{ vars.SMTP_PORT }}
         envkey_SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
         envkey_SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-        envkey_MAILDROP_INBOX: "test-maildropy"
+        envkey_MAILDROP_INBOX: "test-maildropy-$${{github.job}}"
         envkey_SMTP_SSL_MODE: "SSL"
         directory: tests
         file_name: .env
