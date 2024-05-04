@@ -57,7 +57,8 @@ def getenv():
 
 @pytest.fixture(scope="class")
 def inbox(getenv):
-	rand_id = ''.join(random.choice(string.printable) for _ in range(8))
+	allowed_chars = string.ascii_lowercase + string.digits
+	rand_id = ''.join(random.choice(allowed_chars) for _ in range(8))
 	inbox_prefix = getenv['MAILDROP_INBOX_PREFIX']
 	return f'{inbox_prefix}-{rand_id}'
 
@@ -112,7 +113,7 @@ def send_mails(params, getenv, inbox, maildrop_reader):
 
 	sent_mails = []
 	for _ in range(params.nb_msgs_to_test_with):
-		sent_mails.append(send_test_mail(params, getenv))
+		sent_mails.append(send_test_mail(params, getenv, inbox))
 		time.sleep(1)  # rate limiting?
 
 		time_to_wait = params.receive_timeout
