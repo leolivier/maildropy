@@ -111,8 +111,9 @@ def send_mails(params, getenv, maildrop_reader):
 		time.sleep(1)  # rate limiting?
 
 		time_to_wait = params.receive_timeout
+		inbox = getenv['MAILDROP_INBOX']
 		while True:
-			assert time_to_wait >= 0, "timeout while waiting for emails arrival"
+			assert time_to_wait >= 0, f"timeout while waiting for emails arrival on inbox {inbox}"
 			sys.stdout.write('*')
 			sys.stdout.flush()
 			msgs = maildrop_reader.inbox()
