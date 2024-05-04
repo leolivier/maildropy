@@ -56,6 +56,12 @@ def getenv():
 	return os.environ
 
 @pytest.fixture(scope="class")
+def inbox():
+	rand_id = ''.join(random.choice(string.printable) for _ in range(8))
+	inbox_prefix = getenv['MAILDROP_INBOX']
+	return f'{inbox_prefix}-{rand_id}'
+
+@pytest.fixture(scope="class")
 def trace_requests_if_needed():
 	if TRACE_REQUESTS: trace_requests()
 
@@ -64,23 +70,22 @@ def params(getenv):
 		return ParamsForTestingMaildropy()
 
 @pytest.fixture(scope="class")
-def maildrop_reader(getenv):
-		return MailDropReader(getenv['MAILDROP_INBOX'])
+def maildrop_reader(inbox):
+		return MailDropReader(inbox)
 
-def send_test_mail(params, getenv):
+def send_test_mail(params, getenv, inbox):
 	# get a timestamped email subject and body
 	# id = ''.join(random.choice(string.digits) for _ in range(8))
 	id = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
 	subject = params.subject_template % id
-	body = params.body_template % (getenv['MAILDROP_INBOX'], id)
-	print(f"subject: {subject}, body: ***{body}***")
+	body = params.body_template % (inbox, id)
+	print(f">>>> Sending email to: {inbox}@maildrop.cc\n subject: {subject}\n body: ***{body}***")
 	# build a message
 	txt_body = strip_tags(body)
 	msg = EmailMessage()
 	msg.set_content(txt_body)
 	msg['Subject'] = subject
 	msg['From'] = getenv['FROM_ADDRESS']
-	inbox = getenv['MAILDROP_INBOX']
 	msg['To'] = f'{inbox}@maildrop.cc'
 	msg.add_alternative(body, subtype='html')
 	# create an smtp server (ssl or not)
@@ -99,7 +104,7 @@ def send_test_mail(params, getenv):
 	return (subject, compress(body))
 
 @pytest.fixture(scope="class")
-def send_mails(params, getenv, maildrop_reader):
+def send_mails(params, getenv, inbox, maildrop_reader):
 	# delete sent mails not deleted before starting sending new ones
 	# WARNING!!! As we don't master at all how much time it takes to gmail to actually
 	# send the emails, we don't know if we will receive new emails after this action
@@ -111,7 +116,6 @@ def send_mails(params, getenv, maildrop_reader):
 		time.sleep(1)  # rate limiting?
 
 		time_to_wait = params.receive_timeout
-		inbox = getenv['MAILDROP_INBOX']
 		while True:
 			assert time_to_wait >= 0, f"timeout while waiting for emails arrival on inbox {inbox}"
 			sys.stdout.write('*')
