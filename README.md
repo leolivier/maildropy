@@ -1,7 +1,5 @@
 # A Python package to read emails from maildrop.cc
 
-__THIS IS STILL WIP__
-
 This package provides a very simple class MailDropReader that mimics the graphql API of maildrop.cc.
 You create a new reader with `MailDropReader(<your maildrop.cc inbox name>)
 The methods are:
